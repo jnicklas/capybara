@@ -374,7 +374,9 @@ require 'capybara/selector/definition'
 #   ```
 #
 # * **:table_row** - Find table row
-#   * Locator: Array<String>, Hash<String, String> table row `<td>` contents - visibility of `<td>` elements is not considered
+#   * Locator: Array<String>, Hash<String, String> table row `<td>` contents - visibility of `<td>` elements is not considered, or Integer row number
+#   * Filters:
+#       * :headers (Boolean, :only) - Match headers in addition to data rows? (Default: false)
 #
 #   ```ruby
 #   page.html # => '<table>
@@ -394,6 +396,7 @@ require 'capybara/selector/definition'
 #
 #   page.find :table_row, 'A' => '1', 'B' => '2'
 #   page.find :table_row, 'A' => '3', 'B' => '4'
+#   page.find :table_row, 2, headers: true
 #   ```
 #
 # * **:frame** - Find frame/iframe elements
