@@ -42,7 +42,7 @@ module Capybara
       end
 
       def pending_requests?
-        @counter.positive?
+        @counter.positive? || @server_backlog&.positive? || false
       end
 
       def clear_error
@@ -66,6 +66,10 @@ module Capybara
           end
         end
       end
+
+    private
+
+      attr_writer :server_backlog
     end
   end
 end

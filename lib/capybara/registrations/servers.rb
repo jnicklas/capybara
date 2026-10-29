@@ -28,6 +28,7 @@ Capybara.register_server :puma do |app, port, host, **options| # rubocop:disable
   rescue LoadError
     raise LoadError, 'Capybara is unable to load `puma` for its server, please add `puma` to your project or specify a different server via something like `Capybara.server = :webrick`.'
   end
+  require 'capybara/server/puma_backlog'
   puma_rack_handler = defined?(Rackup::Handler::Puma) ? Rackup::Handler::Puma : Rack::Handler::Puma
 
   unless puma_rack_handler.respond_to?(:config)
@@ -55,12 +56,20 @@ Capybara.register_server :puma do |app, port, host, **options| # rubocop:disable
   logger.log "* Version #{Puma::Const::PUMA_VERSION}, codename: #{Puma::Const::CODE_NAME}"
   logger.log "* Min threads: #{conf.options[:min_threads]}, max threads: #{conf.options[:max_threads]}"
 
-  Puma::Server.new(
+  server = Puma::Server.new(
     conf.app,
     defined?(Puma::LogWriter) ? nil : logger,
     conf.options
-  ).tap do |s|
-    s.binder.parse conf.options[:binds], (s.log_writer rescue s.events) # rubocop:disable Style/RescueModifier
-    s.min_threads, s.max_threads = conf.options[:min_threads], conf.options[:max_threads] if s.respond_to? :min_threads=
-  end.run.join
+  )
+  server.binder.parse conf.options[:binds], (server.log_writer rescue server.events) # rubocop:disable Style/RescueModifier
+  if server.respond_to? :min_threads=
+    server.min_threads, server.max_threads = conf.options[:min_threads], conf.options[:max_threads]
+  end
+
+  middleware = app if app.is_a?(Capybara::Server::Middleware)
+  middleware&.send(:server_backlog=, Capybara::Server::PumaBacklog.new(server))
+
+  server.run.join
+ensure
+  middleware&.send(:server_backlog=, nil)
 end

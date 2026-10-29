@@ -130,6 +130,80 @@ RSpec.describe Capybara::Server do
     Capybara.server = :default
   end
 
+  context 'when server is Puma' do
+    let(:events) { Queue.new }
+    let(:release_body) { Queue.new }
+    let(:app) do
+      request_events = events
+      body_release = release_body
+      blocking_body = Enumerator.new do |body|
+        request_events.push(:body_started)
+        body_release.pop
+        body << 'Hello Server!'
+      end
+
+      proc do |env|
+        request = Rack::Request.new(env)
+
+        if request.path == '/blocking_response'
+          [200, {}, blocking_body]
+        else
+          request_events.push(:queued_request_started)
+          [200, {}, ['Hello Server!']]
+        end
+      end
+    end
+
+    before { Capybara.server = :puma, { Threads: '1:1', Silent: true } }
+    after { Capybara.server = :default }
+
+    shared_examples 'counting puma requests not yet passed to the app' do
+      it 'should count pending requests' do
+        server = servers.first
+        request_server = servers.last
+
+        expect(request_server.port).to eq(server.port)
+
+        middleware = server.send(:middleware)
+
+        blocking_socket = start_request(server, '/blocking_response')
+        expect(events.pop).to eq(:body_started)
+
+        queued_socket = start_request(request_server, '/queued_request')
+
+        expect(middleware.pending_requests?).to be(true)
+
+        release_body.push(true)
+        expect(events.pop).to eq(:queued_request_started)
+
+        blocking_socket.read
+        queued_socket.read
+
+        expect(middleware.pending_requests?).to be(false)
+      ensure
+        release_body.push(true)
+        blocking_socket.close
+        queued_socket.close
+      end
+    end
+
+    context 'with one server' do
+      let(:servers) { [described_class.new(app).boot] }
+
+      include_examples 'counting puma requests not yet passed to the app'
+    end
+
+    context 'when reusing the server' do
+      let!(:old_reuse_server) { Capybara.reuse_server }
+      let(:servers) { Array.new(2) { described_class.new(app).boot } }
+
+      before { Capybara.reuse_server = true }
+      after { Capybara.reuse_server = old_reuse_server }
+
+      include_examples 'counting puma requests not yet passed to the app'
+    end
+  end
+
   it 'should support SSL' do
     key = File.join(Dir.pwd, 'spec', 'fixtures', 'key.pem')
     cert = File.join(Dir.pwd, 'spec', 'fixtures', 'certificate.pem')
@@ -192,8 +266,8 @@ RSpec.describe Capybara::Server do
       server2 = described_class.new(app).boot
 
       expect do
-        start_request(server1, 1.0)
-        start_request(server2, 3.0)
+        make_request(server1, 1.0)
+        make_request(server2, 3.0)
         server1.wait_for_pending_requests
       end.to change { done }.from(0).to(2)
       expect(server2.send(:pending_requests?)).to be(false)
@@ -237,8 +311,8 @@ RSpec.describe Capybara::Server do
       server2 = described_class.new(app).boot
 
       expect do
-        start_request(server1, 1.0)
-        start_request(server2, 3.0)
+        make_request(server1, 1.0)
+        make_request(server2, 3.0)
         server1.wait_for_pending_requests
       end.to change { done }.from(0).to(1)
       expect(server2.send(:pending_requests?)).to be(true)
@@ -272,12 +346,12 @@ RSpec.describe Capybara::Server do
     server = described_class.new(app).boot
 
     expect do
-      start_request(server, 59.0)
+      make_request(server, 59.0)
       server.wait_for_pending_requests
     end.not_to raise_error
 
     expect do
-      start_request(server, 61.0)
+      make_request(server, 61.0)
       server.wait_for_pending_requests
     end.to raise_error('Requests did not finish in 60 seconds: ["/?wait_time=61.0"]')
   end
@@ -304,12 +378,17 @@ RSpec.describe Capybara::Server do
     end
   end
 
-  def start_request(server, wait_time)
-    # Start request, but don't wait for it to finish
-    socket = TCPSocket.new(server.host, server.port)
-    socket.write "GET /?wait_time=#{wait_time} HTTP/1.0\r\n\r\n"
+  def make_request(server, wait_time)
+    socket = start_request(server, "/?wait_time=#{wait_time}")
     sleep 0.1
     socket.close
     sleep 0.1
+  end
+
+  def start_request(server, path)
+    # Start request, but don't wait for it to finish
+    TCPSocket.new(server.host, server.port).tap do |socket|
+      socket.write "GET #{path} HTTP/1.0\r\n\r\n"
+    end
   end
 end
