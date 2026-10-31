@@ -29,6 +29,12 @@ Capybara::SpecHelper.spec '#has_text?' do
     expect(@session).to have_text('exercitation ullamco laboris')
   end
 
+  it 'should ignore text inside a closed dialog' do
+    @session.visit('/with_html')
+    expect(@session).to have_text('Open dialog contents')
+    expect(@session).not_to have_text('Closed dialog contents')
+  end
+
   it 'should search correctly normalized text' do
     @session.visit('/with_html')
     expect(@session).to have_text('text with   whitespace')

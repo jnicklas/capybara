@@ -110,7 +110,8 @@ module Capybara
           # No need for an xpath if only checking the current element
           !(native.key?('hidden') ||
             /display:\s?none/.match?(native[:style] || '') ||
-            %w[script head style].include?(tag_name))
+            %w[script head style].include?(tag_name) ||
+            (tag_name == 'dialog' && !native.key?('open')))
         end
       end
 
@@ -208,6 +209,7 @@ module Capybara
           x.attr(:style)[x.contains('display:none') | x.contains('display: none')] |
           x.attr(:hidden) |
           x.qname.one_of('script', 'head') |
+          (x.self(:dialog) & !x.attr(:open)) |
           (~x.self(:summary) & XPath.parent(:details)[!XPath.attr(:open)])
         ].boolean
       end.to_s.freeze
