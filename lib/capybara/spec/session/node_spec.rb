@@ -281,6 +281,16 @@ Capybara::SpecHelper.spec 'node' do
       expect(descendants).to all(be_visible)
     end
 
+    it 'closed dialog elements and descendants should be non-visible' do
+      expect(@session.find(:css, '#closed_dialog', visible: :all)).not_to be_visible
+      expect(@session.find(:css, '#closed_dialog strong', visible: :all)).not_to be_visible
+    end
+
+    it 'open dialog elements and descendants should be visible' do
+      expect(@session.find(:css, '#open_dialog')).to be_visible
+      expect(@session.find(:css, '#open_dialog strong')).to be_visible
+    end
+
     it 'works when details is toggled open and closed' do
       @session.find(:css, '#closed_details > summary').click
       expect(@session).to have_css('#closed_details *', visible: :visible, count: 5)
