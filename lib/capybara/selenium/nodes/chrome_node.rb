@@ -7,6 +7,18 @@ class Capybara::Selenium::ChromeNode < Capybara::Selenium::Node
   include Html5Drag
   include FileInputClickEmulation
 
+  def visible_text
+    super
+  rescue Selenium::WebDriver::Error::UnknownError => e
+    raise_retryable_query_error(e)
+  end
+
+  def all_text
+    super
+  rescue Selenium::WebDriver::Error::UnknownError => e
+    raise_retryable_query_error(e)
+  end
+
   def set_text(value, clear: nil, **_unused)
     super.tap do
       # React doesn't see the chromedriver element clear
@@ -65,6 +77,8 @@ class Capybara::Selenium::ChromeNode < Capybara::Selenium::Node
       driver.options[:native_displayed] = false
       super
     end
+  rescue Selenium::WebDriver::Error::UnknownError => e
+    raise_retryable_query_error(e)
   end
 
   def send_keys(*args)
@@ -85,17 +99,15 @@ class Capybara::Selenium::ChromeNode < Capybara::Selenium::Node
     end
   end
 
-protected
-
-  def catch_error?(error, errors = nil)
-    # Selenium::WebDriver::Error::UnknownError:
-    #    unknown error: unhandled inspector error: {"code":-32000,"message":"Node with given id does not belong to the document"}
-    super ||
-      (error.is_a?(Selenium::WebDriver::Error::UnknownError) &&
-       error.message.include?('Node with given id does not belong to the document'))
-  end
-
 private
+
+  def raise_retryable_query_error(error)
+    raise error unless error.message.include?('Node with given id does not belong to the document')
+
+    # Chrome can report a detached document node as an unknown inspector error.
+    # Retry the whole query: treating the node as absent could satisfy a negative assertion.
+    raise Capybara::RetryableQueryError, error.message, error.backtrace
+  end
 
   def perform_legacy_drag(element, drop_modifiers)
     return super if chromedriver_fixed_actions_key_state? || element.obscured?

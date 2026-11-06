@@ -69,7 +69,7 @@ module Capybara
       #
       # @param  [Integer] seconds  (current sessions default_max_wait_time) Maximum number of seconds to retry this block
       # @param  [Array<Exception>] errors (driver.invalid_element_errors +
-      #   [Capybara::ElementNotFound]) exception types that cause the block to be rerun
+      #   [Capybara::ElementNotFound, Capybara::RetryableQueryError]) exception types that cause the block to be rerun
       # @return [Object]                  The result of the given block
       # @raise  [Capybara::FrozenInTime]  If the return value of `Time.now` appears stuck
       #
@@ -132,7 +132,7 @@ module Capybara
     protected
 
       def catch_error?(error, errors = nil)
-        errors ||= (driver.invalid_element_errors + [Capybara::ElementNotFound])
+        errors ||= (driver.invalid_element_errors + [Capybara::ElementNotFound, Capybara::RetryableQueryError])
         errors.any? { |type| error.is_a?(type) }
       end
 
