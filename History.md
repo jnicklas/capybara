@@ -1,3 +1,9 @@
+# Unreleased
+
+### Fixed
+
+* Retry Chrome text and visibility queries on "Node with given id does not belong to the document", using existing query waits without treating failed reads as absent elements.
+
 # Version 3.40.0
 Release date: 2024-01-26
 

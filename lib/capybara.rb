@@ -22,6 +22,8 @@ module Capybara
   class ScopeError < CapybaraError; end
   class WindowError < CapybaraError; end
   class ReadOnlyElementError < CapybaraError; end
+  # A failed driver read requires a new query, not exclusion of the inspected node.
+  class RetryableQueryError < CapybaraError; end
 
   class << self
     extend Forwardable
