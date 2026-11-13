@@ -314,7 +314,7 @@ module Capybara
     # @return [Capybara::Session]     The currently used session
     #
     def current_session
-      specified_session || session_pool["#{current_driver}:#{session_name}:#{app.object_id}"]
+      specified_session || session_pool[build_session_key(session_name)]
     end
 
     ##
@@ -407,6 +407,19 @@ module Capybara
       end
     end
 
+    ##
+    #
+    # Returns a list of session names that have been actively used.
+    #
+    # @return [Array<Symbol>] A list of session names
+    #
+    def touched_session_names
+      session_pool.keys.filter_map do |key|
+        session_name = key.split(':')[1].to_sym
+        session_name if key == build_session_key(session_name) && session_pool[key].touched?
+      end
+    end
+
     def session_options
       config.session_options
     end
@@ -415,6 +428,10 @@ module Capybara
 
     def config
       @config ||= Capybara::Config.new
+    end
+
+    def build_session_key(session_name)
+      "#{current_driver}:#{session_name}:#{app.object_id}"
     end
 
     def session_pool

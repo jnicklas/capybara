@@ -111,6 +111,17 @@ module Capybara
 
     ##
     #
+    # Returns true if the current session has been touched, indicating it has been actively used.
+    # This returns true after a `visit` action and false after `quit` or `reset!`.
+    #
+    # @return [Boolean] true if the session has been used, false otherwise
+    #
+    def touched?
+      @touched
+    end
+
+    ##
+    #
     # Reset the session (i.e. remove cookies and navigate to blank page).
     #
     # This method does not:

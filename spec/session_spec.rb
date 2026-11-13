@@ -17,6 +17,19 @@ RSpec.describe Capybara::Session do
     end
   end
 
+  describe '#touched?' do
+    it 'returns state of modified session' do
+      session = described_class.new(:rack_test, TestApp)
+      expect(session.touched?).to eq(false)
+
+      session.visit '/'
+      expect(session.touched?).to eq(true)
+
+      session.reset!
+      expect(session.touched?).to eq(false)
+    end
+  end
+
   context 'current_driver' do
     around do |example|
       orig_driver = Capybara.current_driver

@@ -257,6 +257,34 @@ RSpec.describe Capybara::DSL do
     end
   end
 
+  describe '#touched_session_names' do
+    before do
+      Capybara.send(:session_pool).clear
+    end
+
+    it 'returns available session names' do
+      Capybara.current_session.visit '/'
+      expect(Capybara.touched_session_names).to contain_exactly(:default)
+
+      Capybara.using_session(:administrator) do
+        Capybara.current_session.visit '/'
+      end
+      expect(Capybara.touched_session_names).to contain_exactly(:default, :administrator)
+    end
+
+    it "doesn't return unmatched app session names" do
+      old_app = Capybara.app
+
+      Capybara.current_session.visit '/'
+      expect(Capybara.touched_session_names).to contain_exactly(:default)
+
+      Capybara.app = Class.new(old_app)
+      expect(Capybara.touched_session_names).to be_empty
+    ensure
+      Capybara.app = old_app
+    end
+  end
+
   describe '#session_name' do
     it 'should default to :default' do
       expect(Capybara.session_name).to eq(:default)
